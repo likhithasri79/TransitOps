@@ -30,6 +30,7 @@ const expensesRouter = require('./routes/expenses');
 const fuelRouter = require('./routes/fuel');
 
 const { authenticateToken } = require('./middleware/auth');
+const { startCronJobs } = require('./services/cron');
 
 // Public Route (No token required)
 app.use('/api/auth', authRouter);
@@ -45,6 +46,9 @@ app.use('/api/maintenance', maintenanceRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/expenses', expensesRouter);
 app.use('/api/fuel', fuelRouter);
+
+// Initialize Background Cron Jobs
+startCronJobs();
 
 // Start the server
 app.listen(PORT, () => {

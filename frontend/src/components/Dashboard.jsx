@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
   const { vehicles, drivers, trips } = useApp();
@@ -126,7 +127,42 @@ export default function Dashboard() {
       </div>
 
       {/* Visual Analytics / Quick Live Board overview */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px' }}>
+        
+        {/* Fleet Status Donut Chart */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>Fleet Status Distribution</h2>
+          <div style={{ flexGrow: 1, minHeight: '300px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Active (On Trip)', value: activeVehicles },
+                    { name: 'Available', value: availableVehicles },
+                    { name: 'In Maintenance', value: inShopVehicles }
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  <Cell fill="var(--cyan)" />
+                  <Cell fill="var(--emerald)" />
+                  <Cell fill="var(--amber)" />
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-glass)', borderRadius: '8px' }}
+                  itemStyle={{ color: 'var(--text-primary)' }}
+                />
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Filtered Table */}
         <div className="card">
           <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>Filtered Fleet Status List ({totalVehiclesCount} Assets)</h2>
           <div className="table-container">

@@ -1,5 +1,8 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export default function Analytics() {
   const { vehicles, trips, fuelLogs, maintenanceLogs, expenses } = useApp();
@@ -94,6 +97,47 @@ export default function Analytics() {
     document.body.removeChild(link);
   };
 
+  // PDF Export Handler
+  const exportToPDF = () => {
+    if (fleetData.length === 0) return;
+    
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text('TransitOps Fleet Financial Report', 14, 22);
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+    
+    // Summary KPIs
+    doc.setFontSize(10);
+    doc.text(`Total Projected Revenue: $${totalFleetRevenue.toLocaleString()}`, 14, 40);
+    doc.text(`Total Fleet Cost: $${totalFleetCost.toLocaleString()}`, 14, 45);
+    doc.text(`Fleet Profit Margin: $${(totalFleetRevenue - totalFleetCost).toLocaleString()}`, 14, 50);
+    
+    const headers = [['Reg #', 'Model', 'Dist (km)', 'Fuel (L)', 'Eff (km/L)', 'Cost ($)', 'Rev ($)', 'Profit ($)', 'ROI (%)']];
+    const rows = fleetData.map(d => [
+      d.reg_number,
+      d.name,
+      d.distance,
+      d.liters,
+      d.efficiency,
+      d.operatingCost,
+      d.revenue,
+      d.netProfit,
+      d.roi
+    ]);
+
+    doc.autoTable({
+      head: headers,
+      body: rows,
+      startY: 55,
+      theme: 'grid',
+      headStyles: { fillColor: [40, 40, 40] }
+    });
+
+    doc.save(`transitops_fleet_report_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <>
       <div className="header-bar">
@@ -101,9 +145,14 @@ export default function Analytics() {
           <h1>Reports & Analytics</h1>
           <p>Analyze vehicle returns, fleet fuel efficiency, and download CSV sheets</p>
         </div>
-        <button className="btn btn-primary" onClick={exportToCSV} disabled={fleetData.length === 0}>
-          📥 Export Fleet Financials (CSV)
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button className="btn btn-secondary" onClick={exportToCSV} disabled={fleetData.length === 0}>
+            📥 Export CSV
+          </button>
+          <button className="btn btn-primary" onClick={exportToPDF} disabled={fleetData.length === 0}>
+            📄 Export PDF Report
+          </button>
+        </div>
       </div>
 
       {/* Analytics KPI summary */}
@@ -142,6 +191,26 @@ export default function Analytics() {
             Freight Revenue modeled at ${REVENUE_PER_KM.toFixed(2)}/km driven on completed dispatches
           </span>
         </div>
+
+        {/* Fleet Revenue vs Cost Chart */}
+        {fleetData.length > 0 && (
+          <div style={{ height: '300px', marginBottom: '32px', marginTop: '16px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={fleetData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-glass)" vertical={false} />
+                <XAxis dataKey="reg_number" stroke="var(--text-secondary)" tick={{fill: 'var(--text-secondary)', fontSize: 12}} />
+                <YAxis stroke="var(--text-secondary)" tick={{fill: 'var(--text-secondary)', fontSize: 12}} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-glass)', borderRadius: '8px' }}
+                  itemStyle={{ color: 'var(--text-primary)' }}
+                />
+                <Legend verticalAlign="top" height={36} />
+                <Bar dataKey="revenue" name="Projected Revenue ($)" fill="var(--emerald)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="operatingCost" name="Operating Cost ($)" fill="var(--rose)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
 
         <div className="table-container">
           <table className="data-table">

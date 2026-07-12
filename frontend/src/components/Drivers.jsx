@@ -168,14 +168,17 @@ export default function Drivers() {
               </tr>
             </thead>
             <tbody>
-              {drivers.filter(d => statusFilter === 'All' || d.status === statusFilter).length === 0 ? (
+              {drivers.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No drivers found for this status.</td>
+                  <td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No drivers found in the system.</td>
                 </tr>
               ) : (
-                drivers.filter(d => statusFilter === 'All' || d.status === statusFilter).map(d => {
+                drivers.map(d => {
                   const licInfo = getLicenseStatus(d.license_expiry);
-                  return (
+                  return { ...d, displayStatus: licInfo.isExpired ? 'Off Duty' : d.status, licInfo };
+                })
+                .filter(d => statusFilter === 'All' || d.displayStatus === statusFilter)
+                .map(d => (
                     <tr key={d.id}>
                       <td style={{ fontWeight: 600 }}>{d.name}</td>
                       <td>
@@ -187,7 +190,7 @@ export default function Drivers() {
                       <td>{d.contact}</td>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontWeight: 500, color: licInfo.color }}>{licInfo.text}</span>
+                          <span style={{ fontWeight: 500, color: d.licInfo.color }}>{d.licInfo.text}</span>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Expiry: {d.license_expiry}</span>
                         </div>
                       </td>
@@ -200,8 +203,8 @@ export default function Drivers() {
                         </div>
                       </td>
                       <td>
-                        <span className={`badge ${d.status.toLowerCase().replace(' ', '-')}`}>
-                          {d.status}
+                        <span className={`badge ${d.displayStatus.toLowerCase().replace(' ', '-')}`}>
+                          {d.displayStatus}
                         </span>
                       </td>
                       {canEdit && (
@@ -225,8 +228,7 @@ export default function Drivers() {
                         </td>
                       )}
                     </tr>
-                  );
-                })
+                  ))
               )}
             </tbody>
           </table>
@@ -266,10 +268,6 @@ export default function Drivers() {
         >
           Suspended
         </button>
-        
-        <span style={{ marginLeft: '12px', fontSize: '0.8rem', color: 'var(--amber)' }}>
-          Rules: Expired license or Suspended status ➔ blocked from trip assignment
-        </span>
       </div>
 
       {/* Add/Edit Modal */}

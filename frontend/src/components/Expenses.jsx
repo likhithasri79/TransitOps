@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export default function Expenses() {
   const { 
@@ -94,6 +96,57 @@ export default function Expenses() {
     }
   };
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text('TransitOps Expense Report', 14, 22);
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+    
+    let headers = [];
+    let rows = [];
+    let title = '';
+
+    if (activeTab === 'summary') {
+      title = 'Operating Cost Summary';
+      headers = [['Vehicle Model', 'Fuel Costs ($)', 'Maintenance Costs ($)', 'Tolls & Fees ($)', 'Total Cost ($)']];
+      rows = vehicles.map(v => {
+        const fuel = getVehicleTotalFuel(v.id);
+        const maint = getVehicleTotalMaint(v.id);
+        const other = getVehicleTotalOther(v.id);
+        const total = fuel + maint + other;
+        return [`${v.name} (${v.reg_number})`, fuel, maint, other, total];
+      });
+    } else if (activeTab === 'fuel') {
+      title = 'Fuel Log Ledger';
+      headers = [['Vehicle', 'Date', 'Liters Filled', 'Refill Cost ($)', 'Average Price ($/L)']];
+      rows = [...fuelLogs].reverse().map(f => [
+        getVehicleLabel(f.vehicle_id), f.date, f.liters, f.cost, (f.cost / f.liters).toFixed(2)
+      ]);
+    } else if (activeTab === 'tolls') {
+      title = 'Tolls & Fees Ledger';
+      headers = [['Vehicle', 'Date', 'Expense Category', 'Memo Details', 'Amount ($)']];
+      rows = [...expenses].reverse().map(e => [
+        getVehicleLabel(e.vehicle_id), e.date, e.type, e.description, e.cost
+      ]);
+    }
+
+    doc.setFontSize(14);
+    doc.setTextColor(40);
+    doc.text(title, 14, 45);
+
+    doc.autoTable({
+      head: headers,
+      body: rows,
+      startY: 50,
+      theme: 'grid',
+      headStyles: { fillColor: [40, 40, 40] }
+    });
+
+    doc.save(`transitops_${activeTab}_report_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <>
       <div className="header-bar">
@@ -106,8 +159,11 @@ export default function Expenses() {
             <button className="btn btn-secondary" onClick={() => setShowFuelModal(true)}>
               ⛽ Log Fuel Refill
             </button>
-            <button className="btn btn-primary" onClick={() => setShowExpModal(true)}>
+            <button className="btn btn-secondary" onClick={() => setShowExpModal(true)}>
               💵 Log Other Expense
+            </button>
+            <button className="btn btn-primary" onClick={exportToPDF}>
+              📄 Export PDF Report
             </button>
           </div>
         )}
