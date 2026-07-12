@@ -7,6 +7,7 @@ export default function Fleet() {
   // Modal states
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [notice, setNotice] = useState(null);
   
   // Form fields
   const [name, setName] = useState('');
@@ -82,13 +83,19 @@ export default function Fleet() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to retire/remove this vehicle from the database?')) {
-      try {
-        await removeVehicle(id);
-      } catch (err) {
-        alert(err.message);
+    setNotice({
+      type: 'confirm',
+      title: 'Remove Vehicle?',
+      message: 'Are you sure you want to retire/remove this vehicle from the database?',
+      onConfirm: async () => {
+        try {
+          await removeVehicle(id);
+          setNotice({ type: 'success', title: 'Deleted', message: 'Vehicle successfully removed from the system.' });
+        } catch (err) {
+          setNotice({ type: 'error', title: 'Deletion Failed', message: err.message });
+        }
       }
-    }
+    });
   };
 
   return (
@@ -269,6 +276,32 @@ export default function Fleet() {
                 <button type="submit" className="btn btn-primary">{editingId ? 'Save Changes' : 'Register Vehicle'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Centered Notice Modal */}
+      {notice && (
+        <div className="modal-overlay" style={{ zIndex: 1000 }}>
+          <div className="modal-content" style={{ maxWidth: '400px', textAlign: 'center' }}>
+            <div className="modal-header" style={{ borderBottom: 'none', justifyContent: 'center', paddingBottom: 0 }}>
+              <h3 style={{ fontSize: '1.25rem', color: notice.type === 'error' ? 'var(--rose)' : (notice.type === 'success' ? 'var(--emerald)' : 'white') }}>
+                {notice.title}
+              </h3>
+            </div>
+            <div className="modal-body" style={{ padding: '20px' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>{notice.message}</p>
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'center', borderTop: 'none', paddingTop: 0 }}>
+              {notice.type === 'confirm' ? (
+                <>
+                  <button className="btn btn-secondary" onClick={() => setNotice(null)}>Go Back</button>
+                  <button className="btn btn-danger" onClick={notice.onConfirm}>Yes, Remove</button>
+                </>
+              ) : (
+                <button className="btn btn-primary" onClick={() => setNotice(null)}>Okay</button>
+              )}
+            </div>
           </div>
         </div>
       )}

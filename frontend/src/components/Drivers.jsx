@@ -7,6 +7,10 @@ export default function Drivers() {
   // Modal states
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [notice, setNotice] = useState(null);
+  
+  // Filter state
+  const [statusFilter, setStatusFilter] = useState('All');
   
   // Form states
   const [name, setName] = useState('');
@@ -82,13 +86,19 @@ export default function Drivers() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to remove this driver profile?')) {
-      try {
-        await removeDriver(id);
-      } catch (err) {
-        alert(err.message);
+    setNotice({
+      type: 'confirm',
+      title: 'Remove Driver?',
+      message: 'Are you sure you want to remove this driver profile? This action cannot be undone.',
+      onConfirm: async () => {
+        try {
+          await removeDriver(id);
+          setNotice({ type: 'success', title: 'Deleted', message: 'Driver successfully removed from the system.' });
+        } catch (err) {
+          setNotice({ type: 'error', title: 'Deletion Failed', message: err.message });
+        }
       }
-    }
+    });
   };
 
   // Helper to calculate license status and days left
@@ -160,12 +170,15 @@ export default function Drivers() {
             <tbody>
               {drivers.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No drivers registered.</td>
+                  <td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No drivers found in the system.</td>
                 </tr>
               ) : (
                 drivers.map(d => {
                   const licInfo = getLicenseStatus(d.license_expiry);
-                  return (
+                  return { ...d, displayStatus: licInfo.isExpired ? 'Off Duty' : d.status, licInfo };
+                })
+                .filter(d => statusFilter === 'All' || d.displayStatus === statusFilter)
+                .map(d => (
                     <tr key={d.id}>
                       <td style={{ fontWeight: 600 }}>{d.name}</td>
                       <td>
@@ -177,7 +190,7 @@ export default function Drivers() {
                       <td>{d.contact}</td>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontWeight: 500, color: licInfo.color }}>{licInfo.text}</span>
+                          <span style={{ fontWeight: 500, color: d.licInfo.color }}>{d.licInfo.text}</span>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Expiry: {d.license_expiry}</span>
                         </div>
                       </td>
@@ -190,8 +203,8 @@ export default function Drivers() {
                         </div>
                       </td>
                       <td>
-                        <span className={`badge ${d.status.toLowerCase().replace(' ', '-')}`}>
-                          {d.status}
+                        <span className={`badge ${d.displayStatus.toLowerCase().replace(' ', '-')}`}>
+                          {d.displayStatus}
                         </span>
                       </td>
                       {canEdit && (
@@ -215,12 +228,46 @@ export default function Drivers() {
                         </td>
                       )}
                     </tr>
-                  );
-                })
+                  ))
               )}
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Toggle Stat Filters from Wireframe */}
+      <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Toggle Stat:
+        </span>
+        <button 
+          onClick={() => setStatusFilter(statusFilter === 'Available' ? 'All' : 'Available')} 
+          className="badge available" 
+          style={{ cursor: 'pointer', border: 'none', opacity: statusFilter === 'Available' || statusFilter === 'All' ? 1 : 0.4 }}
+        >
+          Available
+        </button>
+        <button 
+          onClick={() => setStatusFilter(statusFilter === 'On Trip' ? 'All' : 'On Trip')} 
+          className="badge on-trip" 
+          style={{ cursor: 'pointer', border: 'none', opacity: statusFilter === 'On Trip' || statusFilter === 'All' ? 1 : 0.4 }}
+        >
+          On Trip
+        </button>
+        <button 
+          onClick={() => setStatusFilter(statusFilter === 'Off Duty' ? 'All' : 'Off Duty')} 
+          className="badge off-duty" 
+          style={{ cursor: 'pointer', border: 'none', opacity: statusFilter === 'Off Duty' || statusFilter === 'All' ? 1 : 0.4 }}
+        >
+          Off Duty
+        </button>
+        <button 
+          onClick={() => setStatusFilter(statusFilter === 'Suspended' ? 'All' : 'Suspended')} 
+          className="badge suspended" 
+          style={{ cursor: 'pointer', border: 'none', opacity: statusFilter === 'Suspended' || statusFilter === 'All' ? 1 : 0.4 }}
+        >
+          Suspended
+        </button>
       </div>
 
       {/* Add/Edit Modal */}
@@ -318,6 +365,32 @@ export default function Drivers() {
                 <button type="submit" className="btn btn-primary">{editingId ? 'Save Profile' : 'Register Driver'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Centered Notice Modal */}
+      {notice && (
+        <div className="modal-overlay" style={{ zIndex: 1000 }}>
+          <div className="modal-content" style={{ maxWidth: '400px', textAlign: 'center' }}>
+            <div className="modal-header" style={{ borderBottom: 'none', justifyContent: 'center', paddingBottom: 0 }}>
+              <h3 style={{ fontSize: '1.25rem', color: notice.type === 'error' ? 'var(--rose)' : (notice.type === 'success' ? 'var(--emerald)' : 'white') }}>
+                {notice.title}
+              </h3>
+            </div>
+            <div className="modal-body" style={{ padding: '20px' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>{notice.message}</p>
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'center', borderTop: 'none', paddingTop: 0 }}>
+              {notice.type === 'confirm' ? (
+                <>
+                  <button className="btn btn-secondary" onClick={() => setNotice(null)}>Go Back</button>
+                  <button className="btn btn-danger" onClick={notice.onConfirm}>Yes, Remove</button>
+                </>
+              ) : (
+                <button className="btn btn-primary" onClick={() => setNotice(null)}>Okay</button>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export default function Expenses() {
   const { 
@@ -31,15 +33,15 @@ export default function Expenses() {
 
   // Helper calculation functions
   const getVehicleTotalFuel = (vId) => {
-    return fuelLogs.filter(f => f.vehicle_id === vId).reduce((sum, curr) => sum + curr.cost, 0);
+    return fuelLogs.filter(f => f.vehicle_id === vId).reduce((sum, curr) => sum + Number(curr.cost), 0);
   };
 
   const getVehicleTotalMaint = (vId) => {
-    return maintenanceLogs.filter(m => m.vehicle_id === vId).reduce((sum, curr) => sum + curr.cost, 0);
+    return maintenanceLogs.filter(m => m.vehicle_id === vId).reduce((sum, curr) => sum + Number(curr.cost), 0);
   };
 
   const getVehicleTotalOther = (vId) => {
-    return expenses.filter(e => e.vehicle_id === vId).reduce((sum, curr) => sum + curr.cost, 0);
+    return expenses.filter(e => e.vehicle_id === vId).reduce((sum, curr) => sum + Number(curr.cost), 0);
   };
 
   const getVehicleLabel = (vId) => {
@@ -55,7 +57,7 @@ export default function Expenses() {
     }
     try {
       await addFuelLog({
-        vehicle_id: Number(fuelVehicleId),
+        vehicle_id: fuelVehicleId,
         liters: Number(fuelLiters),
         cost: Number(fuelCost),
         date: fuelDate
@@ -78,7 +80,7 @@ export default function Expenses() {
     }
     try {
       await addExpense({
-        vehicle_id: Number(expVehicleId),
+        vehicle_id: expVehicleId,
         type: expType,
         cost: Number(expCost),
         description: expDesc,
@@ -94,6 +96,57 @@ export default function Expenses() {
     }
   };
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text('TransitOps Expense Report', 14, 22);
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+    
+    let headers = [];
+    let rows = [];
+    let title = '';
+
+    if (activeTab === 'summary') {
+      title = 'Operating Cost Summary';
+      headers = [['Vehicle Model', 'Fuel Costs ($)', 'Maintenance Costs ($)', 'Tolls & Fees ($)', 'Total Cost ($)']];
+      rows = vehicles.map(v => {
+        const fuel = getVehicleTotalFuel(v.id);
+        const maint = getVehicleTotalMaint(v.id);
+        const other = getVehicleTotalOther(v.id);
+        const total = fuel + maint + other;
+        return [`${v.name} (${v.reg_number})`, fuel, maint, other, total];
+      });
+    } else if (activeTab === 'fuel') {
+      title = 'Fuel Log Ledger';
+      headers = [['Vehicle', 'Date', 'Liters Filled', 'Refill Cost ($)', 'Average Price ($/L)']];
+      rows = [...fuelLogs].reverse().map(f => [
+        getVehicleLabel(f.vehicle_id), f.date, f.liters, f.cost, (f.cost / f.liters).toFixed(2)
+      ]);
+    } else if (activeTab === 'tolls') {
+      title = 'Tolls & Fees Ledger';
+      headers = [['Vehicle', 'Date', 'Expense Category', 'Memo Details', 'Amount ($)']];
+      rows = [...expenses].reverse().map(e => [
+        getVehicleLabel(e.vehicle_id), e.date, e.type, e.description, e.cost
+      ]);
+    }
+
+    doc.setFontSize(14);
+    doc.setTextColor(40);
+    doc.text(title, 14, 45);
+
+    doc.autoTable({
+      head: headers,
+      body: rows,
+      startY: 50,
+      theme: 'grid',
+      headStyles: { fillColor: [40, 40, 40] }
+    });
+
+    doc.save(`transitops_${activeTab}_report_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <>
       <div className="header-bar">
@@ -106,8 +159,11 @@ export default function Expenses() {
             <button className="btn btn-secondary" onClick={() => setShowFuelModal(true)}>
               ⛽ Log Fuel Refill
             </button>
-            <button className="btn btn-primary" onClick={() => setShowExpModal(true)}>
+            <button className="btn btn-secondary" onClick={() => setShowExpModal(true)}>
               💵 Log Other Expense
+            </button>
+            <button className="btn btn-primary" onClick={exportToPDF}>
+              📄 Export PDF Report
             </button>
           </div>
         )}
@@ -117,22 +173,46 @@ export default function Expenses() {
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border-glass)', gap: '16px', marginBottom: '8px' }}>
         <button 
           onClick={() => setActiveTab('summary')}
-          className={`nav-item ${activeTab === 'summary' ? 'active' : ''}`}
-          style={{ background: 'none', borderBottom: activeTab === 'summary' ? '2px solid var(--cyan)' : 'none', borderRadius: 0, padding: '12px 6px' }}
+          style={{ 
+            background: 'none', 
+            border: 'none',
+            borderBottom: activeTab === 'summary' ? '2px solid var(--primary)' : '2px solid transparent', 
+            borderRadius: 0, 
+            padding: '12px 16px',
+            color: activeTab === 'summary' ? 'var(--primary)' : 'var(--text-secondary)',
+            fontWeight: activeTab === 'summary' ? 600 : 500,
+            cursor: 'pointer'
+          }}
         >
           📊 Operating Cost Summary
         </button>
         <button 
           onClick={() => setActiveTab('fuel')}
-          className={`nav-item ${activeTab === 'fuel' ? 'active' : ''}`}
-          style={{ background: 'none', borderBottom: activeTab === 'fuel' ? '2px solid var(--cyan)' : 'none', borderRadius: 0, padding: '12px 6px' }}
+          style={{ 
+            background: 'none', 
+            border: 'none',
+            borderBottom: activeTab === 'fuel' ? '2px solid var(--primary)' : '2px solid transparent', 
+            borderRadius: 0, 
+            padding: '12px 16px',
+            color: activeTab === 'fuel' ? 'var(--primary)' : 'var(--text-secondary)',
+            fontWeight: activeTab === 'fuel' ? 600 : 500,
+            cursor: 'pointer'
+          }}
         >
           ⛽ Fuel Refill Logs ({fuelLogs.length})
         </button>
         <button 
           onClick={() => setActiveTab('tolls')}
-          className={`nav-item ${activeTab === 'tolls' ? 'active' : ''}`}
-          style={{ background: 'none', borderBottom: activeTab === 'tolls' ? '2px solid var(--cyan)' : 'none', borderRadius: 0, padding: '12px 6px' }}
+          style={{ 
+            background: 'none', 
+            border: 'none',
+            borderBottom: activeTab === 'tolls' ? '2px solid var(--primary)' : '2px solid transparent', 
+            borderRadius: 0, 
+            padding: '12px 16px',
+            color: activeTab === 'tolls' ? 'var(--primary)' : 'var(--text-secondary)',
+            fontWeight: activeTab === 'tolls' ? 600 : 500,
+            cursor: 'pointer'
+          }}
         >
           🎫 Tolls & Fees Ledger ({expenses.length})
         </button>

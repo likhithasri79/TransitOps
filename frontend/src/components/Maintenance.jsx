@@ -17,8 +17,8 @@ export default function Maintenance() {
 
   const isManager = currentUser?.role === 'Fleet Manager';
 
-  // Only allow non-retired vehicles for new maintenance logs
-  const activeVehicles = vehicles.filter(v => v.status !== 'Retired');
+  // Only allow Available vehicles for new maintenance logs
+  const activeVehicles = vehicles.filter(v => v.status === 'Available');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,7 +29,7 @@ export default function Maintenance() {
 
     try {
       await addMaintenanceLog({
-        vehicle_id: Number(vehicleId),
+        vehicle_id: vehicleId,
         description,
         cost: Number(cost),
         type,

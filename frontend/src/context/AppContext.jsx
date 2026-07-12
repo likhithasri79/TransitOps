@@ -60,6 +60,10 @@ export const AppProvider = ({ children }) => {
     setError(null);
     try {
       const res = await api.login(email, password);
+      // Save the real token from the backend to localStorage
+      if (res.token) localStorage.setItem('token', res.token);
+      if (res.user) localStorage.setItem('user', JSON.stringify(res.user));
+      
       setCurrentUser(res.user);
       return res.user;
     } catch (err) {
@@ -87,9 +91,8 @@ export const AppProvider = ({ children }) => {
   const addVehicle = async (vehicleData) => {
     setError(null);
     try {
-      const newVehicle = await api.createVehicle(vehicleData);
-      setVehicles(prev => [...prev, newVehicle]);
-      return newVehicle;
+      await api.createVehicle(vehicleData);
+      await refreshData();
     } catch (err) {
       setError(err.message);
       throw err;
@@ -99,9 +102,8 @@ export const AppProvider = ({ children }) => {
   const editVehicle = async (id, vehicleData) => {
     setError(null);
     try {
-      const updated = await api.updateVehicle(id, vehicleData);
-      setVehicles(prev => prev.map(v => v.id === Number(id) ? updated : v));
-      return updated;
+      await api.updateVehicle(id, vehicleData);
+      await refreshData();
     } catch (err) {
       setError(err.message);
       throw err;
@@ -112,7 +114,7 @@ export const AppProvider = ({ children }) => {
     setError(null);
     try {
       await api.deleteVehicle(id);
-      setVehicles(prev => prev.filter(v => v.id !== Number(id)));
+      await refreshData();
     } catch (err) {
       setError(err.message);
       throw err;
@@ -123,9 +125,8 @@ export const AppProvider = ({ children }) => {
   const addDriver = async (driverData) => {
     setError(null);
     try {
-      const newDriver = await api.createDriver(driverData);
-      setDrivers(prev => [...prev, newDriver]);
-      return newDriver;
+      await api.createDriver(driverData);
+      await refreshData();
     } catch (err) {
       setError(err.message);
       throw err;
@@ -135,9 +136,8 @@ export const AppProvider = ({ children }) => {
   const editDriver = async (id, driverData) => {
     setError(null);
     try {
-      const updated = await api.updateDriver(id, driverData);
-      setDrivers(prev => prev.map(d => d.id === Number(id) ? updated : d));
-      return updated;
+      await api.updateDriver(id, driverData);
+      await refreshData();
     } catch (err) {
       setError(err.message);
       throw err;
@@ -148,7 +148,7 @@ export const AppProvider = ({ children }) => {
     setError(null);
     try {
       await api.deleteDriver(id);
-      setDrivers(prev => prev.filter(d => d.id !== Number(id)));
+      await refreshData();
     } catch (err) {
       setError(err.message);
       throw err;
@@ -159,9 +159,8 @@ export const AppProvider = ({ children }) => {
   const addTrip = async (tripData) => {
     setError(null);
     try {
-      const newTrip = await api.createTrip(tripData);
-      setTrips(prev => [...prev, newTrip]);
-      return newTrip;
+      await api.createTrip(tripData);
+      await refreshData();
     } catch (err) {
       setError(err.message);
       throw err;

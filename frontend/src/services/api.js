@@ -1,441 +1,258 @@
 // TransitOps Frontend API Service Layer
-// Bridges communication between React and the Express Backend (http://localhost:5000)
-// Falls back to localStorage if the backend is offline.
+// Bridges communication between React and the Express Backend
 
-const API_BASE_URL = 'http://localhost:5000/api';
-export const USE_MOCK = true; // Toggle to false to use the live backend
+const API_BASE = 'http://localhost:5000/api';
 
-// Helper to interact with LocalStorage when in MOCK mode
-const mockDb = {
-  get: (key, defaultVal = []) => JSON.parse(localStorage.getItem(`transitops_${key}`)) || defaultVal,
-  set: (key, val) => localStorage.setItem(`transitops_${key}`, JSON.stringify(val))
-};
-
-// Seed initial mock data if localStorage is empty
-const seedMockData = () => {
-  if (!localStorage.getItem('transitops_users')) {
-    mockDb.set('users', [
-      { id: 1, email: 'manager@transitops.com', password_hash: 'admin', role: 'Fleet Manager' },
-      { id: 2, email: 'driver@transitops.com', password_hash: 'driver', role: 'Driver' },
-      { id: 3, email: 'safety@transitops.com', password_hash: 'safety', role: 'Safety Officer' },
-      { id: 4, email: 'finance@transitops.com', password_hash: 'finance', role: 'Financial Analyst' }
-    ]);
-  }
-  if (!localStorage.getItem('transitops_vehicles')) {
-    mockDb.set('vehicles', [
-      { id: 1, reg_number: 'VAN-05', name: 'Ford Transit Van', type: 'Van', capacity: 500, odometer: 10200, acquisition_cost: 22000, status: 'Available' },
-      { id: 2, reg_number: 'TRUCK-04', name: 'Volvo FH16', type: 'Truck', capacity: 15000, odometer: 45000, acquisition_cost: 85000, status: 'Available' },
-      { id: 3, reg_number: 'TRUCK-02', name: 'Isuzu NPR', type: 'Truck', capacity: 4500, odometer: 67000, acquisition_cost: 38000, status: 'In Shop' },
-      { id: 4, reg_number: 'TRAILER-09', name: 'Kenworth T680', type: 'Trailer', capacity: 25000, odometer: 120000, acquisition_cost: 110000, status: 'Retired' }
-    ]);
-  }
-  if (!localStorage.getItem('transitops_drivers')) {
-    mockDb.set('drivers', [
-      { id: 1, name: 'Alex Johnson', license_no: 'DL-55291', license_category: 'Class C', license_expiry: '2026-12-15', contact: '+1 (555) 019-2234', safety_score: 95, status: 'Available' },
-      { id: 2, name: 'Suresh Kumar', license_no: 'DL-77810', license_category: 'Heavy Rigid', license_expiry: '2026-09-20', contact: '+91 98765 43210', safety_score: 88, status: 'Available' },
-      { id: 3, name: 'Michael Smith', license_no: 'DL-11045', license_category: 'Class A', license_expiry: '2026-06-01', contact: '+1 (555) 021-9988', safety_score: 72, status: 'Suspended' },
-      { id: 4, name: 'John Doe', license_no: 'DL-44390', license_category: 'Class B', license_expiry: '2026-07-20', contact: '+1 (555) 088-1245', safety_score: 90, status: 'Off Duty' }
-    ]);
-  }
-  if (!localStorage.getItem('transitops_trips')) {
-    mockDb.set('trips', [
-      { id: 1, source: 'Gandhinagar Depot', destination: 'Ahmedabad Hub', vehicle_id: 1, driver_id: 1, cargo_weight: 450, planned_distance: 38, status: 'Dispatched' },
-      { id: 2, source: 'Vatva Industrial Area', destination: 'Sanand Warehouse', vehicle_id: 2, driver_id: 2, cargo_weight: 12000, planned_distance: 55, status: 'Draft' },
-      { id: 3, source: 'Mansa', destination: 'Kalol Depot', vehicle_id: 3, driver_id: 3, cargo_weight: 3000, planned_distance: 25, status: 'Cancelled' }
-    ]);
-  }
-  if (!localStorage.getItem('transitops_maintenance_logs')) {
-    mockDb.set('maintenance_logs', [
-      { id: 1, vehicle_id: 3, description: 'Engine oil filter replacement & diagnostic check', cost: 150, date: '2026-07-10', status: 'Open' },
-      { id: 2, vehicle_id: 1, description: 'Brake pad replacement', cost: 320, date: '2026-06-15', status: 'Closed' }
-    ]);
-  }
-  if (!localStorage.getItem('transitops_fuel_logs')) {
-    mockDb.set('fuel_logs', [
-      { id: 1, vehicle_id: 1, trip_id: 1, liters: 32, cost: 65, date: '2026-07-11' },
-      { id: 2, vehicle_id: 2, trip_id: 2, liters: 145, cost: 290, date: '2026-07-09' }
-    ]);
-  }
-  if (!localStorage.getItem('transitops_expenses')) {
-    mockDb.set('expenses', [
-      { id: 1, vehicle_id: 1, type: 'Tolls', cost: 12, description: 'Highway NH8 Toll', date: '2026-07-11' },
-      { id: 2, vehicle_id: 2, type: 'Permits', cost: 150, description: 'State Border Entry Permit', date: '2026-07-08' }
-    ]);
-  }
-};
-seedMockData();
-
-// Generic HTTP fetch helper with mock fallback capability
-async function request(path, options = {}) {
-  if (USE_MOCK) {
-    throw new Error('Using local mock storage.');
-  }
-  try {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('token') ? { 'Authorization': `Bearer ${localStorage.getItem('token')}` } : {})
-      },
-      ...options
-    });
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.message || 'Something went wrong');
+const handleResponse = async (res) => {
+    if (!res.ok) {
+        let errMessage = 'API Request Failed';
+        try {
+            const errData = await res.json();
+            errMessage = errData.error || errData.message || errMessage;
+        } catch (e) { }
+        throw new Error(errMessage);
     }
-    return await response.json();
-  } catch (error) {
-    console.warn(`API Error (${path}): ${error.message}. Checking local storage fallback...`);
-    throw error;
-  }
-}
+    return res.json();
+};
+
+const getHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+};
+
+// Mappers to translate between Frontend (snake_case/mock keys) and Backend (camelCase/schema keys)
+const mapVehicleToBackend = (v) => ({
+    registrationNumber: v.reg_number,
+    nameModel: v.name,
+    type: v.type,
+    maxLoadCapacity: v.capacity,
+    odometer: v.odometer,
+    acquisitionCost: v.acquisition_cost,
+    status: v.status
+});
+const mapVehicleToFrontend = (v) => ({
+    id: v.registrationNumber, // Frontend uses id or reg_number
+    reg_number: v.registrationNumber,
+    name: v.nameModel,
+    type: v.type,
+    capacity: v.maxLoadCapacity,
+    odometer: v.odometer,
+    acquisition_cost: v.acquisitionCost,
+    status: v.status
+});
+
+const mapDriverToBackend = (d) => ({
+    licenseNumber: d.license_no,
+    name: d.name,
+    licenseCategory: d.license_category,
+    licenseExpiryDate: d.license_expiry,
+    contactNumber: d.contact,
+    safetyScore: d.safety_score,
+    status: d.status
+});
+const mapDriverToFrontend = (d) => ({
+    id: d.licenseNumber,
+    license_no: d.licenseNumber,
+    name: d.name,
+    license_category: d.licenseCategory,
+    license_expiry: d.licenseExpiryDate,
+    contact: d.contactNumber,
+    safety_score: d.safetyScore,
+    status: d.status
+});
+
+const mapTripToBackend = (t) => ({
+    source: t.source,
+    destination: t.destination,
+    vehicleReg: t.vehicle_id,
+    driverLicense: t.driver_id,
+    cargoWeight: t.cargo_weight,
+    plannedDistance: t.planned_distance,
+    status: t.status
+});
+const mapTripToFrontend = (t) => ({
+    id: t.tripId,
+    tripId: t.tripId,
+    source: t.source,
+    destination: t.destination,
+    vehicle_id: t.vehicleReg,
+    driver_id: t.driverLicense,
+    cargo_weight: t.cargoWeight,
+    planned_distance: t.plannedDistance,
+    final_odometer: t.finalOdometer,
+    fuel_consumed: t.fuelConsumed,
+    status: t.status,
+    createdAt: t.createdAt
+});
+
+const mapMaintenanceToBackend = (m) => ({
+    vehicleReg: m.vehicle_id,
+    description: m.description,
+    type: m.type || 'Repair',
+    cost: m.cost,
+    dateOpened: m.date
+});
+const mapMaintenanceToFrontend = (m) => ({
+    id: m.logId,
+    logId: m.logId,
+    vehicle_id: m.vehicleReg,
+    description: m.description,
+    type: m.type,
+    cost: m.cost,
+    date: m.dateOpened,
+    dateClosed: m.dateClosed,
+    status: m.status
+});
+
+const mapFuelToFrontend = (f) => ({
+    id: f.logId,
+    vehicle_id: f.vehicleReg,
+    liters: f.liters,
+    cost: f.cost,
+    date: f.date
+});
+const mapExpenseToFrontend = (e) => ({
+    id: e.expenseId,
+    vehicle_id: e.vehicleReg,
+    type: e.type,
+    cost: e.cost,
+    description: e.description,
+    date: e.date
+});
 
 export const api = {
-  // Authentication
-  login: async (email, password) => {
-    if (USE_MOCK) {
-      const users = mockDb.get('users');
-      const user = users.find(u => u.email === email && u.password_hash === password);
-      if (!user) throw new Error('Invalid email or password');
-      const mockToken = `mock_jwt_token_${user.role.replace(' ', '_')}`;
-      localStorage.setItem('token', mockToken);
-      localStorage.setItem('user', JSON.stringify({ email: user.email, role: user.role }));
-      return { token: mockToken, user: { email: user.email, role: user.role } };
+    // Authentication
+    register: async (userData) => {
+        const res = await fetch(`${API_BASE}/auth/register`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(userData) });
+        return handleResponse(res);
+    },
+    login: async (email, password) => {
+        const res = await fetch(`${API_BASE}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+        return handleResponse(res);
+    },
+
+    // Vehicles
+    getVehicles: async () => {
+        const res = await fetch(`${API_BASE}/vehicles`, { headers: getHeaders() });
+        const data = await handleResponse(res);
+        return data.map(mapVehicleToFrontend);
+    },
+    createVehicle: async (vehicleData) => {
+        const res = await fetch(`${API_BASE}/vehicles`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(mapVehicleToBackend(vehicleData)) });
+        return handleResponse(res);
+    },
+    updateVehicle: async (id, vehicleData) => {
+        const res = await fetch(`${API_BASE}/vehicles/${id}`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify(mapVehicleToBackend(vehicleData)) });
+        return handleResponse(res);
+    },
+    deleteVehicle: async (id) => {
+        const res = await fetch(`${API_BASE}/vehicles/${id}`, { method: 'DELETE', headers: getHeaders() });
+        return handleResponse(res);
+    },
+
+    // Drivers
+    getDrivers: async () => {
+        const res = await fetch(`${API_BASE}/drivers`, { headers: getHeaders() });
+        const data = await handleResponse(res);
+        return data.map(mapDriverToFrontend);
+    },
+    createDriver: async (driverData) => {
+        const res = await fetch(`${API_BASE}/drivers`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(mapDriverToBackend(driverData)) });
+        return handleResponse(res);
+    },
+    updateDriver: async (id, driverData) => {
+        const res = await fetch(`${API_BASE}/drivers/${id}`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify(mapDriverToBackend(driverData)) });
+        return handleResponse(res);
+    },
+    deleteDriver: async (id) => {
+        const res = await fetch(`${API_BASE}/drivers/${id}`, { method: 'DELETE', headers: getHeaders() });
+        return handleResponse(res);
+    },
+
+    // Trips
+    getTrips: async () => {
+        const res = await fetch(`${API_BASE}/trips`, { headers: getHeaders() });
+        const data = await handleResponse(res);
+        return data.map(mapTripToFrontend);
+    },
+    createTrip: async (tripData) => {
+        const res = await fetch(`${API_BASE}/trips`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(mapTripToBackend(tripData)) });
+        return handleResponse(res);
+    },
+    dispatchTrip: async (tripId) => {
+        const res = await fetch(`${API_BASE}/trips/dispatch`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ tripId }) });
+        return handleResponse(res);
+    },
+    completeTrip: async (tripId, data) => {
+        const payload = {
+            tripId,
+            finalOdometer: data.final_odometer,
+            fuelLiters: data.fuel_liters,
+            fuelCost: data.fuel_cost
+        };
+        const res = await fetch(`${API_BASE}/trips/complete`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) });
+        return handleResponse(res);
+    },
+    cancelTrip: async (tripId) => {
+        const res = await fetch(`${API_BASE}/trips/cancel`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ tripId }) });
+        return handleResponse(res);
+    },
+
+    // Maintenance
+    getMaintenanceLogs: async () => {
+        const res = await fetch(`${API_BASE}/maintenance`, { headers: getHeaders() });
+        const data = await handleResponse(res);
+        return data.map(mapMaintenanceToFrontend);
+    },
+    createMaintenanceLog: async (logData) => {
+        const res = await fetch(`${API_BASE}/maintenance`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(mapMaintenanceToBackend(logData)) });
+        return handleResponse(res);
+    },
+    closeMaintenanceLog: async (logId) => {
+        const res = await fetch(`${API_BASE}/maintenance/close`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ logId }) });
+        return handleResponse(res);
+    },
+
+    // Fuel Logs & Expenses
+    getFuelLogs: async () => {
+        const res = await fetch(`${API_BASE}/fuel`, { headers: getHeaders() });
+        const data = await handleResponse(res);
+        return data.map(mapFuelToFrontend);
+    },
+    createFuelLog: async (fuelData) => {
+        const payload = {
+            vehicleReg: fuelData.vehicle_id,
+            tripId: fuelData.trip_id,
+            liters: fuelData.liters,
+            cost: fuelData.cost,
+            date: fuelData.date
+        };
+        const res = await fetch(`${API_BASE}/fuel`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) });
+        return handleResponse(res);
+    },
+    getExpenses: async () => {
+        const res = await fetch(`${API_BASE}/expenses`, { headers: getHeaders() });
+        const data = await handleResponse(res);
+        return data.map(mapExpenseToFrontend);
+    },
+    createExpense: async (expenseData) => {
+        const payload = {
+            vehicleReg: expenseData.vehicle_id,
+            type: expenseData.type,
+            cost: expenseData.cost,
+            description: expenseData.description,
+            date: expenseData.date
+        };
+        const res = await fetch(`${API_BASE}/expenses`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) });
+        return handleResponse(res);
+    },
+
+    // Reports & Analytics
+    getAnalytics: async () => {
+        const res = await fetch(`${API_BASE}/reports`, { headers: getHeaders() });
+        return handleResponse(res);
     }
-    return request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password })
-    });
-  },
-
-  // Vehicles
-  getVehicles: async () => {
-    if (USE_MOCK) return mockDb.get('vehicles');
-    return request('/vehicles');
-  },
-  createVehicle: async (vehicleData) => {
-    if (USE_MOCK) {
-      const list = mockDb.get('vehicles');
-      if (list.some(v => v.reg_number === vehicleData.reg_number)) {
-        throw new Error('Registration number must be unique.');
-      }
-      const newV = { id: Date.now(), ...vehicleData, odometer: Number(vehicleData.odometer || 0), capacity: Number(vehicleData.capacity || 0), acquisition_cost: Number(vehicleData.acquisition_cost || 0), status: vehicleData.status || 'Available' };
-      list.push(newV);
-      mockDb.set('vehicles', list);
-      return newV;
-    }
-    return request('/vehicles', {
-      method: 'POST',
-      body: JSON.stringify(vehicleData)
-    });
-  },
-  updateVehicle: async (id, vehicleData) => {
-    if (USE_MOCK) {
-      const list = mockDb.get('vehicles');
-      const idx = list.findIndex(v => v.id === Number(id));
-      if (idx === -1) throw new Error('Vehicle not found');
-      list[idx] = { ...list[idx], ...vehicleData };
-      mockDb.set('vehicles', list);
-      return list[idx];
-    }
-    return request(`/vehicles/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(vehicleData)
-    });
-  },
-  deleteVehicle: async (id) => {
-    if (USE_MOCK) {
-      const list = mockDb.get('vehicles');
-      const filtered = list.filter(v => v.id !== Number(id));
-      mockDb.set('vehicles', filtered);
-      return { success: true };
-    }
-    return request(`/vehicles/${id}`, { method: 'DELETE' });
-  },
-
-  // Drivers
-  getDrivers: async () => {
-    if (USE_MOCK) return mockDb.get('drivers');
-    return request('/drivers');
-  },
-  createDriver: async (driverData) => {
-    if (USE_MOCK) {
-      const list = mockDb.get('drivers');
-      if (list.some(d => d.license_no === driverData.license_no)) {
-        throw new Error('License number must be unique.');
-      }
-      const newD = { id: Date.now(), ...driverData, safety_score: Number(driverData.safety_score || 100), status: driverData.status || 'Available' };
-      list.push(newD);
-      mockDb.set('drivers', list);
-      return newD;
-    }
-    return request('/drivers', {
-      method: 'POST',
-      body: JSON.stringify(driverData)
-    });
-  },
-  updateDriver: async (id, driverData) => {
-    if (USE_MOCK) {
-      const list = mockDb.get('drivers');
-      const idx = list.findIndex(d => d.id === Number(id));
-      if (idx === -1) throw new Error('Driver not found');
-      list[idx] = { ...list[idx], ...driverData };
-      mockDb.set('drivers', list);
-      return list[idx];
-    }
-    return request(`/drivers/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(driverData)
-    });
-  },
-  deleteDriver: async (id) => {
-    if (USE_MOCK) {
-      const list = mockDb.get('drivers');
-      const filtered = list.filter(d => d.id !== Number(id));
-      mockDb.set('drivers', filtered);
-      return { success: true };
-    }
-    return request(`/drivers/${id}`, { method: 'DELETE' });
-  },
-
-  // Trips
-  getTrips: async () => {
-    if (USE_MOCK) return mockDb.get('trips');
-    return request('/trips');
-  },
-  createTrip: async (tripData) => {
-    if (USE_MOCK) {
-      const list = mockDb.get('trips');
-      const vehicles = mockDb.get('vehicles');
-      const drivers = mockDb.get('drivers');
-
-      const vehicle = vehicles.find(v => v.id === Number(tripData.vehicle_id));
-      const driver = drivers.find(d => d.id === Number(tripData.driver_id));
-
-      if (!vehicle || vehicle.status !== 'Available') throw new Error('Vehicle is not available.');
-      if (!driver || driver.status !== 'Available') throw new Error('Driver is not available.');
-      if (Number(tripData.cargo_weight) > vehicle.capacity) throw new Error(`Cargo weight (${tripData.cargo_weight}kg) exceeds vehicle capacity (${vehicle.capacity}kg).`);
-      
-      const licenseExpiry = new Date(driver.license_expiry);
-      if (licenseExpiry <= new Date()) throw new Error('Driver driving license has expired.');
-
-      const newTrip = {
-        id: Date.now(),
-        ...tripData,
-        cargo_weight: Number(tripData.cargo_weight),
-        planned_distance: Number(tripData.planned_distance),
-        status: 'Draft'
-      };
-
-      list.push(newTrip);
-      mockDb.set('trips', list);
-      return newTrip;
-    }
-    return request('/trips', {
-      method: 'POST',
-      body: JSON.stringify(tripData)
-    });
-  },
-  dispatchTrip: async (tripId) => {
-    if (USE_MOCK) {
-      const trips = mockDb.get('trips');
-      const vehicles = mockDb.get('vehicles');
-      const drivers = mockDb.get('drivers');
-
-      const trip = trips.find(t => t.id === Number(tripId));
-      if (!trip) throw new Error('Trip not found');
-
-      const vehicle = vehicles.find(v => v.id === Number(trip.vehicle_id));
-      const driver = drivers.find(d => d.id === Number(trip.driver_id));
-
-      if (vehicle.status !== 'Available' && vehicle.status !== 'On Trip') throw new Error('Vehicle is not available.');
-      if (driver.status !== 'Available' && driver.status !== 'On Trip') throw new Error('Driver is not available.');
-
-      // Update statuses
-      trip.status = 'Dispatched';
-      vehicle.status = 'On Trip';
-      driver.status = 'On Trip';
-
-      mockDb.set('trips', trips);
-      mockDb.set('vehicles', vehicles);
-      mockDb.set('drivers', drivers);
-      return trip;
-    }
-    return request(`/trips/${tripId}/dispatch`, { method: 'POST' });
-  },
-  completeTrip: async (tripId, data) => {
-    // data contains: { final_odometer, fuel_liters, fuel_cost }
-    if (USE_MOCK) {
-      const trips = mockDb.get('trips');
-      const vehicles = mockDb.get('vehicles');
-      const drivers = mockDb.get('drivers');
-      const fuelLogs = mockDb.get('fuel_logs');
-
-      const trip = trips.find(t => t.id === Number(tripId));
-      if (!trip) throw new Error('Trip not found');
-
-      const vehicle = vehicles.find(v => v.id === Number(trip.vehicle_id));
-      const driver = drivers.find(d => d.id === Number(trip.driver_id));
-
-      const finalOdo = Number(data.final_odometer);
-      if (finalOdo <= vehicle.odometer) {
-        throw new Error(`Final odometer (${finalOdo} km) must be greater than starting odometer (${vehicle.odometer} km).`);
-      }
-
-      // Update values
-      trip.status = 'Completed';
-      trip.final_odometer = finalOdo;
-      trip.fuel_consumed = Number(data.fuel_liters);
-
-      vehicle.odometer = finalOdo;
-      vehicle.status = 'Available';
-      driver.status = 'Available';
-
-      // Log Fuel
-      if (data.fuel_liters && data.fuel_cost) {
-        fuelLogs.push({
-          id: Date.now(),
-          vehicle_id: vehicle.id,
-          trip_id: trip.id,
-          liters: Number(data.fuel_liters),
-          cost: Number(data.fuel_cost),
-          date: new Date().toISOString().split('T')[0]
-        });
-        mockDb.set('fuel_logs', fuelLogs);
-      }
-
-      mockDb.set('trips', trips);
-      mockDb.set('vehicles', vehicles);
-      mockDb.set('drivers', drivers);
-      return trip;
-    }
-    return request(`/trips/${tripId}/complete`, {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
-  },
-  cancelTrip: async (tripId) => {
-    if (USE_MOCK) {
-      const trips = mockDb.get('trips');
-      const vehicles = mockDb.get('vehicles');
-      const drivers = mockDb.get('drivers');
-
-      const trip = trips.find(t => t.id === Number(tripId));
-      if (!trip) throw new Error('Trip not found');
-
-      const vehicle = vehicles.find(v => v.id === Number(trip.vehicle_id));
-      const driver = drivers.find(d => d.id === Number(trip.driver_id));
-
-      trip.status = 'Cancelled';
-      if (vehicle && vehicle.status === 'On Trip') vehicle.status = 'Available';
-      if (driver && driver.status === 'On Trip') driver.status = 'Available';
-
-      mockDb.set('trips', trips);
-      mockDb.set('vehicles', vehicles);
-      mockDb.set('drivers', drivers);
-      return trip;
-    }
-    return request(`/trips/${tripId}/cancel`, { method: 'POST' });
-  },
-
-  // Maintenance
-  getMaintenanceLogs: async () => {
-    if (USE_MOCK) return mockDb.get('maintenance_logs');
-    return request('/maintenance');
-  },
-  createMaintenanceLog: async (logData) => {
-    if (USE_MOCK) {
-      const list = mockDb.get('maintenance_logs');
-      const vehicles = mockDb.get('vehicles');
-
-      const vehicle = vehicles.find(v => v.id === Number(logData.vehicle_id));
-      if (!vehicle) throw new Error('Vehicle not found');
-
-      const newLog = {
-        id: Date.now(),
-        ...logData,
-        cost: Number(logData.cost || 0),
-        date: logData.date || new Date().toISOString().split('T')[0],
-        status: 'Open'
-      };
-
-      vehicle.status = 'In Shop';
-
-      list.push(newLog);
-      mockDb.set('maintenance_logs', list);
-      mockDb.set('vehicles', vehicles);
-      return newLog;
-    }
-    return request('/maintenance', {
-      method: 'POST',
-      body: JSON.stringify(logData)
-    });
-  },
-  closeMaintenanceLog: async (logId) => {
-    if (USE_MOCK) {
-      const list = mockDb.get('maintenance_logs');
-      const vehicles = mockDb.get('vehicles');
-
-      const log = list.find(l => l.id === Number(logId));
-      if (!log) throw new Error('Log not found');
-
-      const vehicle = vehicles.find(v => v.id === Number(log.vehicle_id));
-      
-      log.status = 'Closed';
-      if (vehicle && vehicle.status === 'In Shop') {
-        vehicle.status = 'Available';
-      }
-
-      mockDb.set('maintenance_logs', list);
-      mockDb.set('vehicles', vehicles);
-      return log;
-    }
-    return request(`/maintenance/${logId}/close`, { method: 'POST' });
-  },
-
-  // Fuel Logs & Expenses
-  getFuelLogs: async () => {
-    if (USE_MOCK) return mockDb.get('fuel_logs');
-    return request('/fuel');
-  },
-  createFuelLog: async (fuelData) => {
-    if (USE_MOCK) {
-      const list = mockDb.get('fuel_logs');
-      const newLog = {
-        id: Date.now(),
-        ...fuelData,
-        liters: Number(fuelData.liters),
-        cost: Number(fuelData.cost),
-        date: fuelData.date || new Date().toISOString().split('T')[0]
-      };
-      list.push(newLog);
-      mockDb.set('fuel_logs', list);
-      return newLog;
-    }
-    return request('/fuel', {
-      method: 'POST',
-      body: JSON.stringify(fuelData)
-    });
-  },
-  getExpenses: async () => {
-    if (USE_MOCK) return mockDb.get('expenses');
-    return request('/expenses');
-  },
-  createExpense: async (expenseData) => {
-    if (USE_MOCK) {
-      const list = mockDb.get('expenses');
-      const newLog = {
-        id: Date.now(),
-        ...expenseData,
-        cost: Number(expenseData.cost),
-        date: expenseData.date || new Date().toISOString().split('T')[0]
-      };
-      list.push(newLog);
-      mockDb.set('expenses', list);
-      return newLog;
-    }
-    return request('/expenses', {
-      method: 'POST',
-      body: JSON.stringify(expenseData)
-    });
-  }
 };

@@ -9,23 +9,23 @@
   --border-glass: rgba(255, 255, 255, 0.08);
   --border-focus: rgba(79, 70, 229, 0.6);
   
-  --text-primary: #f3f4f6;
-  --text-secondary: #9ca3af;
+  --text-primary: #ffffff;
+  --text-secondary: #a3a3a3;
   --text-muted: #6b7280;
 
-  --primary: #4f46e5;
-  --primary-glow: rgba(79, 70, 229, 0.35);
-  --cyan: #06b6d4;
-  --cyan-glow: rgba(6, 182, 212, 0.25);
+  --primary: #d4ff32;
+  --primary-glow: rgba(212, 255, 50, 0.15);
+  --cyan: #d4ff32;
+  --cyan-glow: rgba(212, 255, 50, 0.15);
   
-  --emerald: #10b981;
-  --emerald-bg: rgba(16, 185, 129, 0.12);
+  --emerald: #d4ff32;
+  --emerald-bg: rgba(212, 255, 50, 0.15);
   --amber: #f59e0b;
-  --amber-bg: rgba(245, 158, 11, 0.12);
+  --amber-bg: rgba(245, 158, 11, 0.15);
   --rose: #ef4444;
-  --rose-bg: rgba(239, 68, 68, 0.12);
-  --blue: #3b82f6;
-  --blue-bg: rgba(59, 130, 246, 0.12);
+  --rose-bg: rgba(239, 68, 68, 0.15);
+  --blue: #a3a3a3;
+  --blue-bg: rgba(163, 163, 163, 0.15);
   
   --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -86,7 +86,6 @@ body {
   padding: 24px 16px;
   display: flex;
   flex-direction: column;
-  backdrop-filter: blur(16px);
   position: fixed;
   height: 100vh;
   z-index: 100;
@@ -140,7 +139,7 @@ body {
   border: 1px solid transparent;
 }
 
-.nav-item:hover, .nav-item.active {
+.nav-item:hover {
   color: var(--text-primary);
   background: var(--bg-card);
   border-color: var(--border-glass);
@@ -160,8 +159,7 @@ body {
 }
 
 .nav-item.active .nav-icon {
-  color: var(--cyan);
-  filter: drop-shadow(0 0 4px var(--cyan-glow));
+  color: #121212;
 }
 
 .sidebar-footer {
@@ -205,14 +203,13 @@ body {
   width: 36px;
   height: 36px;
   background: var(--primary);
-  color: #fff;
+  color: #121212;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
   font-size: 0.9rem;
-  box-shadow: 0 0 10px var(--primary-glow);
 }
 
 .user-info {
@@ -294,7 +291,6 @@ body {
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-main);
   padding: 24px;
-  backdrop-filter: blur(10px);
   box-shadow: var(--shadow-main);
   transition: var(--transition-smooth);
 }
@@ -332,7 +328,7 @@ body {
 }
 
 .kpi-value {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
 }
 
@@ -435,20 +431,18 @@ input:focus, select:focus, textarea:focus {
   display: inline-flex;
   align-items: center;
   padding: 4px 10px;
-  border-radius: 9999px;
+  border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
+  color: #121212;
 }
 
-.badge.available { color: var(--emerald); background: var(--emerald-bg); }
-.badge.on-trip { color: var(--blue); background: var(--blue-bg); }
-.badge.in-shop { color: var(--amber); background: var(--amber-bg); }
-.badge.retired, .badge.suspended { color: var(--rose); background: var(--rose-bg); }
-.badge.draft { color: var(--text-secondary); background: rgba(156, 163, 175, 0.1); }
-.badge.dispatched { color: var(--blue); background: var(--blue-bg); }
-.badge.completed { color: var(--emerald); background: var(--emerald-bg); }
-.badge.cancelled { color: var(--rose); background: var(--rose-bg); }
+.badge.available, .badge.completed { background: var(--primary); color: #121212; }
+.badge.on-trip, .badge.dispatched { background: #e5e5e5; color: #121212; }
+.badge.in-shop { background: var(--amber); color: #121212; }
+.badge.retired, .badge.suspended, .badge.cancelled { background: var(--rose); color: #fff; }
+.badge.off-duty, .badge.draft { background: #333333; color: var(--text-primary); }
 
 /* Buttons */
 .btn {
@@ -468,12 +462,12 @@ input:focus, select:focus, textarea:focus {
 
 .btn-primary {
   background: var(--primary);
-  color: #fff;
+  color: #121212;
   box-shadow: 0 4px 14px var(--primary-glow);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #3b31d8;
+  background: #c3f522;
   transform: translateY(-1px);
 }
 
@@ -624,7 +618,6 @@ input:focus, select:focus, textarea:focus {
   background: var(--bg-card);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-main);
-  backdrop-filter: blur(12px);
   box-shadow: var(--shadow-main);
   display: flex;
   flex-direction: column;

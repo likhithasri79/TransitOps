@@ -24,6 +24,9 @@ export default function Trips() {
   const [fuelLiters, setFuelLiters] = useState('');
   const [fuelCost, setFuelCost] = useState('');
   const [compError, setCompError] = useState('');
+  
+  // Center Notice State
+  const [notice, setNotice] = useState(null);
 
   const [formError, setFormError] = useState('');
 
@@ -39,7 +42,7 @@ export default function Trips() {
   });
 
   // Calculate live validation for weight capacity
-  const selectedVehicle = vehicles.find(v => v.id === Number(vehicleId));
+  const selectedVehicle = vehicles.find(v => v.id === vehicleId);
   const isOverweight = selectedVehicle && Number(cargoWeight) > selectedVehicle.capacity;
   const weightDifference = isOverweight ? Number(cargoWeight) - selectedVehicle.capacity : 0;
 
@@ -57,8 +60,8 @@ export default function Trips() {
     const payload = {
       source,
       destination,
-      vehicle_id: Number(vehicleId),
-      driver_id: Number(driverId),
+      vehicle_id: vehicleId,
+      driver_id: driverId,
       cargo_weight: Number(cargoWeight),
       planned_distance: Number(plannedDistance)
     };
@@ -81,19 +84,26 @@ export default function Trips() {
   const handleDispatch = async (id) => {
     try {
       await dispatchTrip(id);
+      setNotice({ type: 'success', title: 'Trip Dispatched!', message: `Trip TR${id.toString().slice(-4)} has been successfully dispatched.` });
     } catch (err) {
-      alert(err.message);
+      setNotice({ type: 'error', title: 'Dispatch Failed', message: err.message });
     }
   };
 
   const handleCancel = async (id) => {
-    if (window.confirm('Are you sure you want to cancel this trip? Both driver and vehicle will be returned to Available.')) {
-      try {
-        await cancelTrip(id);
-      } catch (err) {
-        alert(err.message);
+    setNotice({
+      type: 'confirm',
+      title: 'Cancel Trip?',
+      message: 'Are you sure you want to cancel this trip? Both driver and vehicle will be returned to Available.',
+      onConfirm: async () => {
+        try {
+          await cancelTrip(id);
+          setNotice(null);
+        } catch (err) {
+          setNotice({ type: 'error', title: 'Cancellation Failed', message: err.message });
+        }
       }
-    }
+    });
   };
 
   const openCompletionModal = (trip) => {
@@ -119,6 +129,7 @@ export default function Trips() {
         fuel_cost: fuelCost ? Number(fuelCost) : null
       });
       setShowCompModal(false);
+      setNotice({ type: 'success', title: 'Trip Completed!', message: `Trip TR${activeTripForComp.id.toString().slice(-4)} was marked complete. Assets have been released.` });
     } catch (err) {
       setCompError(err.message || 'Completion failed.');
     }
@@ -405,6 +416,32 @@ export default function Trips() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Centered Notice Modal */}
+      {notice && (
+        <div className="modal-overlay" style={{ zIndex: 1000 }}>
+          <div className="modal-content" style={{ maxWidth: '400px', textAlign: 'center' }}>
+            <div className="modal-header" style={{ borderBottom: 'none', justifyContent: 'center', paddingBottom: 0 }}>
+              <h3 style={{ fontSize: '1.25rem', color: notice.type === 'error' ? 'var(--rose)' : (notice.type === 'success' ? 'var(--emerald)' : 'white') }}>
+                {notice.title}
+              </h3>
+            </div>
+            <div className="modal-body" style={{ padding: '20px' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>{notice.message}</p>
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'center', borderTop: 'none', paddingTop: 0 }}>
+              {notice.type === 'confirm' ? (
+                <>
+                  <button className="btn btn-secondary" onClick={() => setNotice(null)}>Go Back</button>
+                  <button className="btn btn-danger" onClick={notice.onConfirm}>Yes, Cancel Trip</button>
+                </>
+              ) : (
+                <button className="btn btn-primary" onClick={() => setNotice(null)}>Okay</button>
+              )}
+            </div>
           </div>
         </div>
       )}

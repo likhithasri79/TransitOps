@@ -5,14 +5,15 @@ export default function Settings() {
   const { currentUser } = useApp();
 
   const [depotName, setDepotName] = useState('Gandhinagar Depot GJ4');
-  const [currency, setCurrency] = useState('USD ($)');
+  const [currency, setCurrency] = useState('INR (Rs)');
+  const [distanceUnit, setDistanceUnit] = useState('Kilometers');
 
-  // Preset configuration audit mapping
+  // Exact data from wireframe
   const rbacMatrix = [
-    { role: 'Fleet Manager', fleet: 'Read & Write', drivers: 'Read & Write', trips: 'Read Only', maint: 'Read & Write', finance: 'Read Only', analytics: 'Read Only' },
-    { role: 'Driver / Dispatcher', fleet: 'Read Only', drivers: 'Read Only', trips: 'Read & Write', maint: 'Read Only', finance: 'Write Only', analytics: 'No Access' },
-    { role: 'Safety Officer', fleet: 'Read Only', drivers: 'Read & Write', trips: 'Read Only', maint: 'Read Only', finance: 'No Access', analytics: 'Read Only' },
-    { role: 'Financial Analyst', fleet: 'Read Only', drivers: 'No Access', trips: 'Read Only', maint: 'Read Only', finance: 'Read & Write', analytics: 'Read & Write' }
+    { role: 'Fleet Manager', fleet: '✓', drivers: '✓', trips: '-', fuelExp: '-', analytics: '✓' },
+    { role: 'Dispatcher', fleet: 'View', drivers: '-', trips: '✓', fuelExp: '-', analytics: '-' },
+    { role: 'Safety Officer', fleet: '-', drivers: '✓', trips: 'View', fuelExp: '-', analytics: '-' },
+    { role: 'Financial Analyst', fleet: 'View', drivers: '-', trips: '-', fuelExp: '✓', analytics: '✓' }
   ];
 
   const handleSave = (e) => {
@@ -46,26 +47,22 @@ export default function Settings() {
 
             <div className="form-group">
               <label>System Currency</label>
-              <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                <option value="USD ($)">USD ($) - Dollar</option>
-                <option value="INR (Rs)">INR (Rs) - Rupee</option>
-                <option value="GBP (£)">GBP (£) - Pound</option>
-                <option value="EUR (€)">EUR (€) - Euro</option>
-              </select>
+              <input
+                type="text"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                required
+              />
             </div>
 
             <div className="form-group">
-              <label>Database Connection Mode</label>
-              <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-glass)', borderRadius: '6px', fontSize: '0.85rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span>Mock Database Storage:</span>
-                  <span style={{ color: 'var(--emerald)', fontWeight: 600 }}>Active (localStorage)</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
-                  <span>Live Server (Port 5000):</span>
-                  <span>Standby</span>
-                </div>
-              </div>
+              <label>Distance Unit</label>
+              <input
+                type="text"
+                value={distanceUnit}
+                onChange={(e) => setDistanceUnit(e.target.value)}
+                required
+              />
             </div>
 
             <button type="submit" className="btn btn-primary" style={{ marginTop: '10px' }}>
@@ -89,14 +86,13 @@ export default function Settings() {
                   <th>Fleet</th>
                   <th>Drivers</th>
                   <th>Trips</th>
-                  <th>Maint.</th>
-                  <th>Expenses</th>
+                  <th>Fuel/Exp.</th>
                   <th>Analytics</th>
                 </tr>
               </thead>
               <tbody>
                 {rbacMatrix.map((item, index) => {
-                  const isCurrent = currentUser?.role === (item.role === 'Driver / Dispatcher' ? 'Driver' : item.role);
+                  const isCurrent = currentUser?.role === (item.role === 'Dispatcher' ? 'Driver' : item.role);
                   return (
                     <tr 
                       key={index}
@@ -108,12 +104,11 @@ export default function Settings() {
                       <td style={{ fontWeight: 700, color: isCurrent ? 'var(--cyan)' : 'var(--text-primary)' }}>
                         {item.role} {isCurrent && ' (You)'}
                       </td>
-                      <td style={{ fontSize: '0.8rem', color: item.fleet === 'No Access' ? 'var(--rose)' : 'inherit' }}>{item.fleet}</td>
-                      <td style={{ fontSize: '0.8rem', color: item.drivers === 'No Access' ? 'var(--rose)' : 'inherit' }}>{item.drivers}</td>
-                      <td style={{ fontSize: '0.8rem', color: item.trips === 'No Access' ? 'var(--rose)' : 'inherit' }}>{item.trips}</td>
-                      <td style={{ fontSize: '0.8rem', color: item.maint === 'No Access' ? 'var(--rose)' : 'inherit' }}>{item.maint}</td>
-                      <td style={{ fontSize: '0.8rem', color: item.finance === 'No Access' ? 'var(--rose)' : 'inherit' }}>{item.finance}</td>
-                      <td style={{ fontSize: '0.8rem', color: item.analytics === 'No Access' ? 'var(--rose)' : 'inherit' }}>{item.analytics}</td>
+                      <td style={{ fontSize: '1rem', color: item.fleet === '-' ? 'var(--rose)' : (item.fleet === '✓' ? 'var(--emerald)' : 'inherit') }}>{item.fleet}</td>
+                      <td style={{ fontSize: '1rem', color: item.drivers === '-' ? 'var(--rose)' : (item.drivers === '✓' ? 'var(--emerald)' : 'inherit') }}>{item.drivers}</td>
+                      <td style={{ fontSize: '1rem', color: item.trips === '-' ? 'var(--rose)' : (item.trips === '✓' ? 'var(--emerald)' : 'inherit') }}>{item.trips}</td>
+                      <td style={{ fontSize: '1rem', color: item.fuelExp === '-' ? 'var(--rose)' : (item.fuelExp === '✓' ? 'var(--emerald)' : 'inherit') }}>{item.fuelExp}</td>
+                      <td style={{ fontSize: '1rem', color: item.analytics === '-' ? 'var(--rose)' : (item.analytics === '✓' ? 'var(--emerald)' : 'inherit') }}>{item.analytics}</td>
                     </tr>
                   );
                 })}
