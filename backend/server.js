@@ -27,6 +27,7 @@ const authRouter = require('./routes/auth');
 const maintenanceRouter = require('./routes/maintenance');
 const reportsRouter = require('./routes/reports');
 const expensesRouter = require('./routes/expenses');
+const fuelRouter = require('./routes/fuel');
 
 const { authenticateToken } = require('./middleware/auth');
 
@@ -43,6 +44,7 @@ app.use('/api/trips', tripsRouter);
 app.use('/api/maintenance', maintenanceRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/expenses', expensesRouter);
+app.use('/api/fuel', fuelRouter);
 
 // Start the server
 app.listen(PORT, () => {

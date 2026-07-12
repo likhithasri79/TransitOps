@@ -84,4 +84,35 @@ router.put('/:registrationNumber/status', requireRole(['Fleet Manager']), (req, 
     );
 });
 
+// PUT (Update) full vehicle profile
+router.put('/:registrationNumber', requireRole(['Fleet Manager']), (req, res) => {
+    const { nameModel, type, maxLoadCapacity, odometer, acquisitionCost, status } = req.body;
+    const query = `
+        UPDATE vehicles 
+        SET nameModel = ?, type = ?, maxLoadCapacity = ?, odometer = ?, acquisitionCost = ?, status = ?
+        WHERE registrationNumber = ?
+    `;
+    const params = [nameModel, type, maxLoadCapacity, odometer, acquisitionCost, status, req.params.registrationNumber];
+
+    db.query(query, params, function (err, result) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (result.affectedRows === 0) return res.status(404).json({ error: 'Vehicle not found' });
+        res.json({ message: 'Vehicle updated successfully' });
+    });
+});
+
+// DELETE a vehicle
+router.delete('/:registrationNumber', requireRole(['Fleet Manager']), (req, res) => {
+    db.query('DELETE FROM vehicles WHERE registrationNumber = ?', [req.params.registrationNumber], function (err, result) {
+        if (err) {
+            if (err.code === 'ER_ROW_IS_REFERENCED_2') {
+                return res.status(400).json({ error: 'Cannot delete vehicle because it has associated trips, maintenance, or fuel logs.' });
+            }
+            return res.status(500).json({ error: err.message });
+        }
+        if (result.affectedRows === 0) return res.status(404).json({ error: 'Vehicle not found' });
+        res.json({ message: 'Vehicle deleted successfully' });
+    });
+});
+
 module.exports = router;

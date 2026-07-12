@@ -2,9 +2,20 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
+// GET all maintenance logs
+router.get('/', (req, res) => {
+    db.query('SELECT * FROM maintenance_logs', [], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results);
+    });
+});
+
 // POST - Open a maintenance log
 router.post('/', async (req, res) => {
-    const { logId, vehicleReg, description, type, cost } = req.body;
+    const { vehicleReg, description, type, cost } = req.body;
+    const logId = 'MN-' + Date.now();
     
     try {
         const promisePool = db.promise();
@@ -12,6 +23,16 @@ router.post('/', async (req, res) => {
         await connection.beginTransaction();
 
         try {
+            // Validate Vehicle Status First
+            const [vehicles] = await connection.query('SELECT status FROM vehicles WHERE registrationNumber = ? FOR UPDATE', [vehicleReg]);
+            if (vehicles.length === 0) {
+                await connection.rollback();
+                return res.status(404).json({ error: 'Vehicle not found' });
+            }
+            if (vehicles[0].status !== 'Available') {
+                await connection.rollback();
+                return res.status(400).json({ error: `Cannot send vehicle to shop. Vehicle is currently ${vehicles[0].status}.` });
+            }
             // Insert Maintenance Log
             await connection.query(
                 `INSERT INTO maintenance_logs (logId, vehicleReg, description, type, cost, dateOpened, status) 

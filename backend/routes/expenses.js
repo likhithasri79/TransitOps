@@ -5,9 +5,10 @@ const { requireRole } = require('../middleware/auth');
 
 // POST a new expense
 router.post('/', requireRole(['Fleet Manager', 'Financial Analyst']), (req, res) => {
-    const { expenseId, vehicleReg, type, cost, description, date } = req.body;
+    const { vehicleReg, type, cost, description, date } = req.body;
+    const expenseId = 'EXP-' + Date.now();
     
-    if (!expenseId || !vehicleReg || !type || !cost || !date) {
+    if (!vehicleReg || !type || !cost || !date) {
         return res.status(400).json({ error: 'Missing required expense fields' });
     }
 

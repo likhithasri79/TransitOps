@@ -88,4 +88,35 @@ router.put('/:licenseNumber/status', requireRole(['Fleet Manager', 'Safety Offic
     );
 });
 
+// PUT (Update) full driver profile
+router.put('/:licenseNumber', requireRole(['Fleet Manager', 'Safety Officer']), (req, res) => {
+    const { name, licenseCategory, licenseExpiryDate, contactNumber, safetyScore, status } = req.body;
+    const query = `
+        UPDATE drivers 
+        SET name = ?, licenseCategory = ?, licenseExpiryDate = ?, contactNumber = ?, safetyScore = ?, status = ?
+        WHERE licenseNumber = ?
+    `;
+    const params = [name, licenseCategory, licenseExpiryDate, contactNumber, safetyScore, status, req.params.licenseNumber];
+
+    db.query(query, params, function (err, result) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (result.affectedRows === 0) return res.status(404).json({ error: 'Driver not found' });
+        res.json({ message: 'Driver updated successfully' });
+    });
+});
+
+// DELETE a driver
+router.delete('/:licenseNumber', requireRole(['Fleet Manager', 'Safety Officer']), (req, res) => {
+    db.query('DELETE FROM drivers WHERE licenseNumber = ?', [req.params.licenseNumber], function (err, result) {
+        if (err) {
+            if (err.code === 'ER_ROW_IS_REFERENCED_2') {
+                return res.status(400).json({ error: 'Cannot delete driver because they are currently assigned to one or more trips.' });
+            }
+            return res.status(500).json({ error: err.message });
+        }
+        if (result.affectedRows === 0) return res.status(404).json({ error: 'Driver not found' });
+        res.json({ message: 'Driver deleted successfully' });
+    });
+});
+
 module.exports = router;
